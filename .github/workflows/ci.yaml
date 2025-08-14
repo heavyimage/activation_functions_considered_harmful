@@ -1,0 +1,53 @@
+name: CI
+on:
+  push:
+  pull_request:
+  # trigger a cron job every monday at 8am
+  schedule:
+    - cron: '00 08 * * MON'
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        os:
+          - ubuntu-22.04
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v2
+
+      - name: Fetch submodules
+        run: |
+          git submodule init
+          git submodule update
+
+      - name: Build and load /dev/sgx-step
+        run: |
+          cd $GITHUB_WORKSPACE/kernel/
+          #./install_SGX_driver.sh
+          make clean load
+
+      - name: Patch and install SGX SDK
+        run: |
+          cd $GITHUB_WORKSPACE/sdk/intel-sdk/
+          sudo apt-get update
+          bash -x ./install_SGX_SDK.sh
+          source /opt/intel/sgxsdk/environment
+          sudo service aesmd status
+
+      - name: Run SampleCode in SGX-SDK simulator
+        run: |
+          source /opt/intel/sgxsdk/environment
+          cd $GITHUB_WORKSPACE/sdk/intel-sdk/linux-sgx/SampleCode/LocalAttestation
+          make SGX_MODE=SIM
+          cd bin
+          ldd ./app
+          ./app
+
+      - name: Build SGX-Step sample applications
+        run: |
+          source /opt/intel/sgxsdk/environment
+          for d in $GITHUB_WORKSPACE/app/selftest/*/ ; do echo -e "\n**** $d ****\n" ; cd "$d" ; make ; ldd ./app ; done
+          for d in $GITHUB_WORKSPACE/app/*/ ; do echo -e "\n**** $d ****\n" ; cd "$d" ; if [[ -f Makefile ]]; then make; ldd ./app ; fi ; done

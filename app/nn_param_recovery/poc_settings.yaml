@@ -1,0 +1,118 @@
+ENCLAVE_PATH: "Enclave/encl.so"
+NUM_RUNS: 1
+USE_MODEL: 6
+models:
+  1:
+    description: "TF-micro-lite-sin: exponential"
+    model_path: "../models/tf-micro-lite-sin/models/sin_with_exponential_model_data.cc"
+    ground_truth: "models/tf-micro-lite-sin/models/sin_with_exponential_params.yaml"
+    tf_model: "models/tf-micro-lite-sin/models/sin_with_exponential.tflite"
+    #0  0x00007ffff762d060 in expf ()
+    #1  0x00007ffff7626eec in tflite::(anonymous namespace)::ExpEval(TfLiteContext*, TfLiteNode*) ()
+    #2  0x00007ffff76241db in tflite::MicroInterpreterGraph::InvokeSubgraph(int) ()
+    #3  0x00007ffff761004e in performInference (interpreter=..., inputval=0.100000001, prediction=@0x7ffff778a0b0: 0) at encl.cpp:76
+    symbols:
+      - 'performInference(tflite::MicroInterpreter, float*, unsigned long, float&)' # TRIGGER
+      - 'tflite::MicroInterpreterGraph::InvokeSubgraph(int)'
+      - 'tflite::FullyConnectedParamsFloat(TfLiteFusedActivation)'
+      - 'tflite::(anonymous namespace)::ExpEval(TfLiteContext*, TfLiteNode*)'
+      - 'tflite::(anonymous namespace)::FullyConnectedEval(TfLiteContext*, TfLiteNode*)' # layer start!
+      - 'expf'
+      - 'memcpy'
+      - 'tflite::SingleArenaBufferAllocator::ResetTempAllocations()'
+
+  2:
+    description: "tf-micro-lite-sin: sigmoid"
+    model_path: "../models/tf-micro-lite-sin/models/sin_with_sigmoid_model_data.cc"
+    ground_truth: "models/tf-micro-lite-sin/models/sin_with_sigmoid_params.yaml"
+    tf_model: "models/tf-micro-lite-sin/models/sin_with_sigmoid.tflite"
+    #0  0x00007ffff762d060 in expf ()
+    #1  0x00007ffff7628fc9 in tflite::(anonymous namespace)::LogisticEval(TfLiteContext*, TfLiteNode*) ()
+    #2  0x00007ffff76241db in tflite::MicroInterpreterGraph::InvokeSubgraph(int) ()
+    #3  0x00007ffff761004e in performInference (interpreter=..., inputval=0.100000001, prediction=@0x7ffff778a0b0: 0) at encl.cpp:76
+    symbols:
+      - 'performInference(tflite::MicroInterpreter, float*, unsigned long, float&)' # TRIGGER
+      - 'tflite::MicroInterpreterGraph::InvokeSubgraph(int)'
+      - 'tflite::FullyConnectedParamsFloat(TfLiteFusedActivation)'
+      - 'tflite::(anonymous namespace)::LogisticEval(TfLiteContext*, TfLiteNode*)'
+      - 'tflite::(anonymous namespace)::FullyConnectedEval(TfLiteContext*, TfLiteNode*)' # layer start!
+      - 'expf'
+      - 'memcpy'
+      - 'tflite::SingleArenaBufferAllocator::ResetTempAllocations()'
+
+  3:
+    description: "linear regression with 11 inputs"
+    model_path: "../models/linear_regression/models/linear_regression_model_data.cc"
+    ground_truth: "models/linear_regression/models/params-linear_regression.yaml"
+    tf_model: "models/linear_regression/models/linear_regression.tflite"
+    symbols:
+      - 'performInference(tflite::MicroInterpreter, float*, unsigned long, float&)' # TRIGGER
+      - 'tflite::MicroInterpreterGraph::InvokeSubgraph(int)'
+      - 'tflite::(anonymous namespace)::ExpEval(TfLiteContext*, TfLiteNode*)'
+      - 'tflite::ParseRelu(tflite::Operator const*, tflite::ErrorReporter*, tflite::BuiltinDataAllocator*, void**)'
+      - 'tflite::FullyConnectedParamsFloat(TfLiteFusedActivation)'
+      - 'tflite::(anonymous namespace)::FullyConnectedEval(TfLiteContext*, TfLiteNode*)' # layer start!
+      - 'tflite::tensor_utils::ApplyReluToVector(float const*, int, float*)'
+      - 'expf'
+      - 'fmaxf'
+      # Other functions of note...
+      - 'tflite::ParseSplit(tflite::Operator const*, tflite::ErrorReporter*, tflite::BuiltinDataAllocator*, void**)'
+      - 'tflite::GetOutput(TfLiteContext*, TfLiteNode const*, int)'
+      - 'model_data'
+      - 'tflite::MicroInterpreter::AllocateTensors()'
+      - 'tflite::MicroAllocator::AllocateVariables(tflite::SubGraph const*, TfLiteEvalTensor*, int const*)'
+      - 'tflite::SingleArenaBufferAllocator::AllocateTemp(unsigned long, unsigned long)'
+      - 'heap_base'
+      - 'memcpy'
+      - 'tflite::SingleArenaBufferAllocator::ResetTempAllocations()'
+
+  4:
+    description: "Basic: exponential"
+    model_path: "../models/basic/models/sin_with_exponential_model_data.cc"
+    ground_truth: "models/basic/models/sin_with_exponential_params.yaml"
+    tf_model: "models/basic/models/sin_with_exponential.tflite"
+    #0  0x00007ffff762d060 in expf ()
+    #1  0x00007ffff7626eec in tflite::(anonymous namespace)::ExpEval(TfLiteContext*, TfLiteNode*) ()
+    #2  0x00007ffff76241db in tflite::MicroInterpreterGraph::InvokeSubgraph(int) ()
+    #3  0x00007ffff761004e in performInference (interpreter=..., inputval=0.100000001, prediction=@0x7ffff778a0b0: 0) at encl.cpp:76
+    symbols:
+      - 'expf'
+      - 'tflite::(anonymous namespace)::ExpEval(TfLiteContext*, TfLiteNode*)'
+      - 'tflite::MicroInterpreterGraph::InvokeSubgraph(int)'
+      - 'performInference(tflite::MicroInterpreter, float*, unsigned long, float&)' # TRIGGER
+      - 'memcpy'
+      - 'tflite::SingleArenaBufferAllocator::ResetTempAllocations()'
+
+  5:
+    description: "multiplication of two numbers w/ 2x sigmoid layers"
+    model_path: "../models/multiplication/models/multiplication_with_sigmoid_model_data.cc"
+    ground_truth: "models/multiplication/models/multiplication_with_sigmoid_params.yaml"
+    tf_model: "models/multiplication/models/multiplication_with_sigmoid.tflite"
+    #0 0x7ffff742ebb0 → expf()
+    #1 0x7ffff742a5c0 → tflite::(anonymous namespace)::LogisticEval(TfLiteContext*, TfLiteNode*)()
+    #2 0x7ffff74255d3 → tflite::MicroInterpreterGraph::InvokeSubgraph(int)()
+    #3 0x7ffff741108a → performInference(interpreter={
+
+    # TODO: capture stack here!
+    symbols:
+      - 'expf'
+      - 'tflite::(anonymous namespace)::LogisticEval(TfLiteContext*, TfLiteNode*)'
+      - 'tflite::MicroInterpreterGraph::InvokeSubgraph(int)'
+      - 'performInference(tflite::MicroInterpreter, float*, unsigned long, float&)' # TRIGGER
+      - 'memcpy'
+      - 'tflite::SingleArenaBufferAllocator::ResetTempAllocations()'
+  6:
+    description: "mnist"
+    model_path: "../models/MNIST/models/mnist_model_data.cc"
+    ground_truth: "models/MNIST/models/params-mnist.tflite.yaml"
+    tf_model: "models/MNIST/models/mnist.tflite"
+    start_offset: 615000
+
+    # TODO: capture stack here!
+    symbols:
+      - 'expf'
+      - 'tflite::(anonymous namespace)::LogisticEval(TfLiteContext*, TfLiteNode*)'
+      - 'tflite::MicroInterpreterGraph::InvokeSubgraph(int)'
+      - 'performInference(tflite::MicroInterpreter, float*, unsigned long, int&)' # TRIGGER
+      - 'memcpy'
+      - 'tflite::SingleArenaBufferAllocator::ResetTempAllocations()'

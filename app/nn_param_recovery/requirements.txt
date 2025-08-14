@@ -1,0 +1,13 @@
+PIL
+absl
+graphviz
+matplotlib
+numpy
+pandas
+sklearn
+tabulate
+tensorflow
+tflite_micro
+tqdm
+yaml
+colorlog

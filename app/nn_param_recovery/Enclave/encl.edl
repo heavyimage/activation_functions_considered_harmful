@@ -1,0 +1,10 @@
+enclave{
+
+    trusted{
+        public int entry_point(int num_runs, [in, count=num_inputs] float* inputs, size_t num_inputs);
+    };
+
+	untrusted {
+        void ocall_print_string([in, string] const char *str);
+	};
+};

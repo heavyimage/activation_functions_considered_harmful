@@ -1,0 +1,10 @@
+model_path.h
+asm_nop.S
+encl
+*.pem
+*.a
+*.s
+*.so
+*_u.*
+*_t.*
+tflite-micro

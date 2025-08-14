@@ -1,0 +1,12 @@
+[submodule "kernel/linux-sgx-driver"]
+	path = kernel/linux-sgx-driver
+	url = https://github.com/01org/linux-sgx-driver.git
+[submodule "sdk/intel-sdk/linux-sgx"]
+	path = sdk/intel-sdk/linux-sgx
+	url = https://github.com/01org/linux-sgx.git
+[submodule "sdk/gramine"]
+	path = sdk/gramine/gramine
+	url = https://github.com/gramineproject/gramine.git
+[submodule "sdk/bare-sgx"]
+	path = sdk/bare-sgx
+	url = https://github.com/jovanbulck/bare-sgx.git

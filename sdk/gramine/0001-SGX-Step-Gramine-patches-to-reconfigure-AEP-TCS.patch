@@ -1,0 +1,158 @@
+diff --git a/meson.build b/meson.build
+index 5cdb1c5c..3ecc93d3 100644
+--- a/meson.build
++++ b/meson.build
+@@ -282,6 +282,10 @@ if sgx
+         sgx_dcap_quoteverify_dep = cc.find_library('sgx_dcap_quoteverify')
+     endif
+ 
++  # XXX taken from: https://stackoverflow.com/questions/34663124/link-static-library-to-shared-library-or-to-a-binary
++  libsgxstepdir = join_paths(meson.current_source_dir(), '../../../libsgxstep/')
++  libsgxstep_dep = cc.find_library('libsgx-step', dirs : libsgxstepdir)
++
+   vtune_dep = []
+   dl_dep = []
+ 
+diff --git a/pal/src/host/linux-sgx/host_entry.S b/pal/src/host/linux-sgx/host_entry.S
+index bb38ced4..f53ea26c 100644
+--- a/pal/src/host/linux-sgx/host_entry.S
++++ b/pal/src/host/linux-sgx/host_entry.S
+@@ -1,7 +1,18 @@
+ #include "sgx_arch.h"
+ 
+ #include "asm-offsets.h"
+-
++/************************************************************************/
++/* XXX AEP hook for SGX-Step support */
++    .data
++    .global g_aep_pointer
++g_aep_pointer:
++    .word 0x0
++    .word 0x0
++    .word 0x0
++    .word 0x0
++/************************************************************************/
++
++    .text
+     .extern tcs_base
+     .extern g_in_aex_profiling
+ 
+@@ -38,9 +49,17 @@ sgx_ecall:
+     movq %gs:PAL_HOST_TCB_TCS, %rbx
+ 
+     # RCX has to be the AEP (Asynchronous Exit Pointer)
+-    leaq async_exit_pointer(%rip), %rcx
+-
+-    movq $EENTER, %rax
++    /************************************************************************/
++    /* XXX support hookable AEP for SGX-Step */
++    leaq        g_aep_pointer(%rip), %rax
++    movq        (%rax), %rcx                    /* aep addr */
++    cmp         $0x0, %rcx
++    jnz 1f
++    leaq        async_exit_pointer(%rip), %rcx
++    movq        %rcx, (%rax)
++    /************************************************************************/
++
++1:  movq        $EENTER, %rax                /* EENTER leaf */
+     ENCLU
+ 
+     # currently only ECALL_THREAD_RESET returns
+@@ -178,3 +197,29 @@ sgx_raise:
+     # RSI - external event
+     jmp .Ldo_ecall
+     .cfi_endproc
++
++
++/************************************************************************/
++/* XXX getter functions to be used in libsgxstep */
++
++.macro DECLARE_GLOBAL_FUNC name
++    .globl \name
++    .type \name, @function
++\name:
++.endm
++
++DECLARE_GLOBAL_FUNC sgx_get_aep
++    leaq        g_aep_pointer(%rip), %rax
++    movq        (%rax), %rax
++    ret
++ 
++DECLARE_GLOBAL_FUNC sgx_set_aep
++    leaq        g_aep_pointer(%rip), %rax
++    movq        %rdi, (%rax)
++    ret
++
++DECLARE_GLOBAL_FUNC sgx_get_tcs
++    movq %gs:PAL_HOST_TCB_TCS, %rax
++    ret
++
++/************************************************************************/
+diff --git a/pal/src/host/linux-sgx/host_exception.c b/pal/src/host/linux-sgx/host_exception.c
+index f0aae5bd..670ec638 100644
+--- a/pal/src/host/linux-sgx/host_exception.c
++++ b/pal/src/host/linux-sgx/host_exception.c
+@@ -85,8 +85,21 @@ static enum pal_event signal_to_pal_event(int sig) {
+     }
+ }
+ 
++/* XXX support hookable AEP for SGX-Step */
++extern void *g_aep_pointer;
++
+ static bool interrupted_in_enclave(struct ucontext* uc) {
+     unsigned long rip = ucontext_get_ip(uc);
++    
++    /************************************************************************/
++    if (g_aep_pointer)
++    {
++        /* XXX Note: we do _not_ report to the enclave if an exception happens
++         * _inside_ our custom SGX-Step AEP (i.e., contrary to the original
++         * Gramine code below). */
++        return (rip == (unsigned long) g_aep_pointer);
++    }
++    /************************************************************************/
+ 
+     /* in case of AEX, RIP can point to any instruction in the AEP/ERESUME trampoline code, i.e.,
+      * RIP can point to anywhere in [async_exit_pointer, async_exit_pointer_end) interval */
+diff --git a/pal/src/host/linux-sgx/meson.build b/pal/src/host/linux-sgx/meson.build
+index 3e77bdcc..29f16a32 100644
+--- a/pal/src/host/linux-sgx/meson.build
++++ b/pal/src/host/linux-sgx/meson.build
+@@ -4,12 +4,15 @@ gsgx_h = configure_file(
+     configuration: conf_sgx,
+ )
+ 
++sgxstepdir = '../../../../../../../../'
++
+ sgx_inc = [
+     includes_pal_common,
+     include_directories(
+         '.',
+         '../../../include/arch/@0@/linux'.format(host_machine.cpu_family()),
+         '../../../include/host/linux-common',
++        join_paths(sgxstepdir, 'sgx-step/')
+     ),
+ ]
+ 
+@@ -152,6 +155,12 @@ libpal_sgx_host = executable('loader',
+         # host part of PAL uses stack protector with standard parameters (not the ones defined for
+         # PAL/LibOS)
+         '-fstack-protector-strong',
++        
++        # XXX FORTIFY_SOURCE conflicts with regular libc header includes in libsgxstep
++        '-D_FORTIFY_SOURCE=0',
++        # XXX libsgxstep needs Intel SDK headers (only for error reporting; can be hacked out if needed)
++        '-I/opt/intel/sgxsdk/include/'
++
+     ],
+     link_args: [
+         '-Wl,-zrelro',
+@@ -164,6 +173,8 @@ libpal_sgx_host = executable('loader',
+         protobuf_dep,
+         vtune_dep,
+         dl_dep,
++        # XXX link in libsgxstep library
++        libsgxstep_dep
+     ],
+ 
+     install: true,
